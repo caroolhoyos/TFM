@@ -63,8 +63,6 @@
     -webkit-font-smoothing:antialiased;font-size:16px}
   .wrap{max-width:1060px;margin:0 auto;padding:clamp(1.4rem,4vw,3.4rem) clamp(1rem,4vw,2rem) 4rem}
 
-  .eyebrow{font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);
-    font-weight:600;margin:0 0 .9rem}
   .masthead h1{font-family:var(--serif);font-weight:500;font-size:clamp(1.85rem,4.4vw,3rem);
     line-height:1.12;letter-spacing:-.01em;text-wrap:balance;margin:0;max-width:22ch}
 
@@ -211,14 +209,13 @@
 
 <main class="wrap">
   <header class="masthead">
-    <p class="eyebrow">TFM · Teoría de la elección social</p>
     <h1>¿Se pueden amañar las reglas para que gane un candidato concreto?</h1>
   </header>
 
   <section class="instrument" aria-label="Demostración interactiva">
     <div class="panel controls">
       <div class="field">
-        <h2 class="field-title">1 · El electorado</h2>
+        <h2 class="field-title">Elige el modelo</h2>
         <div class="slider cand-count">
           <label for="s-cand">número de candidatos <b id="v-cand">5</b></label>
           <input type="range" id="s-cand" min="3" max="8" step="1" value="5">
@@ -226,7 +223,7 @@
         <div class="profile-options" id="profiles" role="radiogroup" aria-label="Modelo de perfil de votantes"></div>
         <div class="sliders" id="sliders"></div>
         <div class="heatwrap">
-          <p class="mini-label">Dónde coloca el electorado a cada candidato</p>
+          <p class="mini-label">Distribución de votos</p>
           <div class="heatmap" id="heatmap" aria-hidden="true"></div>
           <div class="heataxis"><span>1.ª posición</span><span>última</span></div>
         </div>
@@ -234,7 +231,7 @@
       </div>
 
       <div class="field">
-        <h2 class="field-title">2 · A quién coronar</h2>
+        <h2 class="field-title">Candidato estrella</h2>
         <div class="targets" id="targets" role="radiogroup" aria-label="Candidato objetivo"></div>
       </div>
 
