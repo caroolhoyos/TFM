@@ -1,3 +1,5 @@
+# Variante sin compactificar el ranking de los votantes
+
 import random
 import math
 from statistics import median
@@ -28,21 +30,38 @@ def obtener_candidatos(ranking):
     return candidatos
 
 
-def simular_ronda(Pi_r, ranking, candidatos):
-    # Calcula los puntos y elimina a quienes obtienen el mínimo
-    candidatos_set = set(candidatos)
-    puntuaciones = {c: 0 for c in candidatos}
+def obtener_profundidad_ranking(ranking):
+    # Número máximo de niveles de preferencia presentes en un ranking individual
+    return max((len(preferencias) for _, preferencias in ranking), default=0)
 
+
+def precalcular_conteos_posiciones(ranking, candidatos, profundidad=None):
+    # Cuenta cuántos votantes sitúan a cada candidato en cada posición original
+    if profundidad is None:
+        profundidad = obtener_profundidad_ranking(ranking)
+
+    candidatos_set = set(candidatos)
+    conteos = {c: [0] * profundidad for c in candidatos}
     for grupos_votantes, preferencias in ranking:
-        posicion_compacta = 0
-        for nivel in preferencias: 
-            candidatos_nivel = [c for c in nivel if c in candidatos_set]
-            if not candidatos_nivel:
-                continue
-            puntos = Pi_r[posicion_compacta]
-            for c in candidatos_nivel:
-                puntuaciones[c] += grupos_votantes * puntos
-            posicion_compacta += 1
+        for posicion, nivel in enumerate(preferencias):
+            if posicion >= profundidad:
+                break
+            for c in nivel:
+                if c in candidatos_set:
+                    conteos[c][posicion] += grupos_votantes
+
+    return conteos
+
+
+def simular_ronda(Pi_r, ranking, candidatos, conteos_posiciones=None):
+    # Calcula los puntos sin compactificar posiciones y elimina a quienes obtienen el mínimo
+    if conteos_posiciones is None:
+        conteos_posiciones = precalcular_conteos_posiciones(ranking, candidatos, len(Pi_r))
+
+    puntuaciones = {
+        c: sum(frecuencia * puntos for frecuencia, puntos in zip(conteos_posiciones.get(c, ()), Pi_r))
+        for c in candidatos
+    }
 
     minimo = min(puntuaciones.values())
     eliminados = [c for c, p in puntuaciones.items() if p == minimo]
@@ -61,14 +80,13 @@ def obtener_ganador(vivos, puntuaciones=None, resolver_por_puntuacion=False):
     return None
 
 
-
 def fitness(resultado, cand, max_rondas):
-    # Función de fitness 
+    # Función de fitness
     ganador, _, _, rondas_sobrevive, _ = resultado
     if ganador == cand and max_rondas > 0:
         # Premia las victorias en menos rondas
-        return 1.0 + (max_rondas - rondas_sobrevive)/ max_rondas
-    
+        return 1.0 + (max_rondas - rondas_sobrevive) / max_rondas
+
     return 0.0 if max_rondas == 0 else 0.8 * rondas_sobrevive / max_rondas
 
 
@@ -124,24 +142,31 @@ def uniform_crossover(parents):
 
 
 def mutar_ronda(ronda, n_vivos, mutation_prob, sigma_efectiva, a, b):
-    # Aplica ruido gaussiano solo a las posiciones de candidatos vivos.
+    # Muta todas las posiciones, ya que en esta variante conservan su lugar original
+    # Se mantiene n_vivos en la firma por compatibilidad con alg_gen.py
+    n_posiciones_activas = len(ronda)
     hubo_mutacion = False
     if mutation_prob > 0:
-        for j in range(n_vivos):
+        for j in range(n_posiciones_activas):
             if random.random() <= mutation_prob:
                 delta = random.gauss(0, sigma_efectiva)
                 nuevo = ronda[j] + delta
                 ronda[j] = int(round(max(a, min(b, nuevo))))
                 hubo_mutacion = True
     if hubo_mutacion:
-        ronda[:n_vivos] = sorted(ronda[:n_vivos], reverse=True)
-    ronda[n_vivos:] = [0] * (len(ronda) - n_vivos)
+        ronda[:n_posiciones_activas] = sorted(ronda[:n_posiciones_activas], reverse=True)
+    ronda[n_posiciones_activas:] = [0] * (
+        len(ronda) - n_posiciones_activas
+    )
 
 
-def simular_eleccion(Pi, ranking, cand, k, candidatos=None):
-    # Simula las rondas sucesivas de las votaciones
+def simular_eleccion(Pi, ranking, cand, k, candidatos=None, conteos_posiciones=None):
+    # Simula las rondas de las votaciones sin reasignar las posiciones eliminadas
     if candidatos is None:
         candidatos = obtener_candidatos(ranking)
+    if conteos_posiciones is None:
+        profundidad = max((len(ronda) for ronda in Pi), default=0)
+        conteos_posiciones = precalcular_conteos_posiciones(ranking, candidatos, profundidad)
 
     vivos = candidatos[:]
     rondas_sobrevive = 0
@@ -158,7 +183,7 @@ def simular_eleccion(Pi, ranking, cand, k, candidatos=None):
             return ganador, vivos, cand in vivos, rondas_sobrevive, ultima_puntuacion
 
         Pi_r = Pi[r]
-        eliminados, nuevos_vivos, puntuaciones = simular_ronda(Pi_r, ranking, vivos)
+        eliminados, nuevos_vivos, puntuaciones = simular_ronda(Pi_r, ranking, vivos, conteos_posiciones)
         ultima_puntuacion = puntuaciones
         if cand in eliminados:
             ganador = nuevos_vivos[0] if len(nuevos_vivos) == 1 else None
@@ -174,13 +199,13 @@ def simular_eleccion(Pi, ranking, cand, k, candidatos=None):
         ganador = vivos[0]
         return ganador, vivos, cand in vivos, rondas_sobrevive, ultima_puntuacion
 
-    ganador = obtener_ganador( vivos, ultima_puntuacion, resolver_por_puntuacion=True, )
+    ganador = obtener_ganador(vivos, ultima_puntuacion, resolver_por_puntuacion=True)
 
     return ganador, vivos, cand in vivos, rondas_sobrevive, ultima_puntuacion
 
 
-def simular_eleccion_mutante(child,candidatos,cand, max_rondas,mutation_prob,sigma_efectiva,a,b,ranking):
-    # Simula las rondas sucesivas de las votaciones y hace la mutación a la vez
+def simular_eleccion_mutante(child, candidatos, cand, max_rondas, mutation_prob, sigma_efectiva, a, b, ranking, conteos_posiciones=None):
+    # Simula las rondas de las votaciones y hace la mutación a la vez
     vivos = candidatos[:]
     rondas_sobrevive = 0
     ultima_puntuacion = {}
@@ -191,7 +216,7 @@ def simular_eleccion_mutante(child,candidatos,cand, max_rondas,mutation_prob,sig
         return None, vivos, False, 0, ultima_puntuacion
 
     if max_rondas == 0:
-        ganador = obtener_ganador( vivos, resolver_por_puntuacion=False, )
+        ganador = obtener_ganador(vivos, resolver_por_puntuacion=False)
         for ronda in child:
             ronda[:] = [0] * len(ronda)
         return ganador, vivos, True, 0, ultima_puntuacion
@@ -209,19 +234,19 @@ def simular_eleccion_mutante(child,candidatos,cand, max_rondas,mutation_prob,sig
 
             return (ganador, vivos, cand in vivos, rondas_sobrevive, ultima_puntuacion,)
 
-        mutar_ronda( ronda, len(vivos), mutation_prob, sigma_efectiva, a, b, )
-        eliminados, nuevos_vivos, puntuaciones = simular_ronda( ronda, ranking, vivos, )
+        mutar_ronda(ronda, len(vivos), mutation_prob, sigma_efectiva, a, b)
+        eliminados, nuevos_vivos, puntuaciones = simular_ronda(ronda, ranking, vivos, conteos_posiciones)
         ultima_puntuacion = puntuaciones
 
         if cand in eliminados:
             es_ultima_ronda = r + 1 == rondas_a_simular
 
-            ganador = obtener_ganador( nuevos_vivos, puntuaciones, resolver_por_puntuacion=es_ultima_ronda, )
+            ganador = obtener_ganador(nuevos_vivos, puntuaciones, resolver_por_puntuacion=es_ultima_ronda)
 
             for ronda_restante in child[r + 1:]:
                 ronda_restante[:] = [0] * len(ronda_restante)
 
-            return (ganador,nuevos_vivos, False,rondas_sobrevive,ultima_puntuacion,)
+            return (ganador, nuevos_vivos, False, rondas_sobrevive, ultima_puntuacion,)
 
         rondas_sobrevive += 1
         vivos = nuevos_vivos
@@ -240,18 +265,22 @@ def simular_eleccion_mutante(child,candidatos,cand, max_rondas,mutation_prob,sig
 
             return (ganador, vivos, cand in vivos, rondas_sobrevive, ultima_puntuacion,)
 
-    ganador = obtener_ganador( vivos, ultima_puntuacion, resolver_por_puntuacion=True, )
+    ganador = obtener_ganador(vivos, ultima_puntuacion, resolver_por_puntuacion=True)
 
     for ronda_restante in child[rondas_a_simular:]:
         ronda_restante[:] = [0] * len(ronda_restante)
 
     return (ganador, vivos, cand in vivos, rondas_sobrevive, ultima_puntuacion,)
 
-def mutate(children, mutation_prob, a, b, ranking, candidatos, cand, max_rondas, sigma=None):
+
+def mutate(children, mutation_prob, a, b, ranking, candidatos, cand, max_rondas, sigma=None, conteos_posiciones=None):
+    # Muta los descendientes y evalúa el resultado electoral de cada uno
     sigma_efectiva = (b - a) * 0.5 if sigma is None else sigma
-    resultados = [simular_eleccion_mutante(child, candidatos, cand, max_rondas, mutation_prob, sigma_efectiva, a, b, ranking)
-                   for child in children]
-    
+    resultados = [
+        simular_eleccion_mutante(child, candidatos, cand, max_rondas, mutation_prob, sigma_efectiva, a, b, ranking, conteos_posiciones,)
+        for child in children
+    ]
+
     return children, resultados
 
 
@@ -289,6 +318,7 @@ def roulette_selection(family, fitness_values, resultados, pop_size):
 
 
 def seleccionar_poblacion(family, fitness_values, resultados, pop_size, selection_method):
+    # Aplica el método de selección indicado
     if selection_method == "rank":
         return rank_selection(family, fitness_values, resultados, pop_size)
     if selection_method == "roulette":
@@ -296,23 +326,23 @@ def seleccionar_poblacion(family, fitness_values, resultados, pop_size, selectio
     raise ValueError("selection_method debe ser 'rank' o 'roulette'.")
 
 
-def genetic_election(ranking, cand, generations, mutation_prob, pop_size,
-                     k=None, a=0, b=100, return_history=False,
-                     selection_method="rank"):
+def genetic_election(ranking, cand, generations, mutation_prob, pop_size, k=None, a=0, b=100, return_history=False, selection_method="rank"):
 
-    # Inicializa población
+    # Inicializa el ranking, los conteos por posición y la población
     ranking = normalizar_ranking(ranking)
     candidatos = obtener_candidatos(ranking)
-    c = len(candidatos)
+    numero_candidatos = len(candidatos)
+    profundidad_ranking = obtener_profundidad_ranking(ranking)
+    conteos_posiciones = precalcular_conteos_posiciones(ranking, candidatos, profundidad_ranking)
 
     if k is None:
-        k = c - 1
+        k = numero_candidatos - 1
     if k < 0:
         raise ValueError("k debe ser mayor o igual que 0.")
 
-    max_rondas = max(min(k, c - 1), 0)
+    max_rondas = max(min(k, numero_candidatos - 1), 0)
 
-    population, population_resultados = mutate( inicializar_P(pop_size, c, k, a, b), 0, a, b, ranking, candidatos, cand, max_rondas, )
+    population, population_resultados = mutate(inicializar_P(pop_size, profundidad_ranking, k, a, b), 0, a, b, ranking, candidatos, cand, max_rondas, conteos_posiciones=conteos_posiciones,)
     population_fitness = [fitness(resultado, cand, max_rondas) for resultado in population_resultados]
 
     best_final_fitness = -math.inf
@@ -321,12 +351,12 @@ def genetic_election(ranking, cand, generations, mutation_prob, pop_size,
     history = []
 
     for gen in range(generations):
-        # Cruce, mutación y evaluación de fitness de los individuos de cada generación
+        # Cruce, mutación y evaluación de fitness de cada generación
         parents = pair_parents(population)
         children = uniform_crossover(parents)
 
         sigma = (b - a) * 0.35 * (1 - gen / generations)
-        mutated_pop, mutated_resultados = mutate( children, mutation_prob, a, b, ranking, candidatos, cand, max_rondas, sigma=sigma )
+        mutated_pop, mutated_resultados = mutate(children, mutation_prob, a, b, ranking, candidatos, cand, max_rondas, sigma=sigma, conteos_posiciones=conteos_posiciones,)
 
         children_fitness = [fitness(r, cand, max_rondas) for r in mutated_resultados]
 
@@ -337,20 +367,26 @@ def genetic_election(ranking, cand, generations, mutation_prob, pop_size,
         best_pos_generation = max(range(len(fitness_values)), key=fitness_values.__getitem__)
         best_fitness_generation = fitness_values[best_pos_generation]
 
-        if best_fitness_generation > best_final_fitness:
+        elite_actualizado = best_fitness_generation > best_final_fitness
+        if elite_actualizado:
             best_final_fitness = best_fitness_generation
             best_candidate = family[best_pos_generation]
             best_resultado = family_resultados[best_pos_generation]
 
         if return_history:
-            history.append({ "generation": gen + 1, "best_fitness": best_final_fitness, "generation_best_fitness": best_fitness_generation, "average_fitness": sum(fitness_values) / len(fitness_values), "median_fitness": median(fitness_values), })
+            history.append({"generation": gen + 1, "best_fitness": best_final_fitness, "generation_best_fitness": best_fitness_generation, "average_fitness": sum(fitness_values) / len(fitness_values), "median_fitness": median(fitness_values), })
 
-        # Elitismo
-        family_without_best = family[:best_pos_generation] + family[best_pos_generation + 1:]
-        fitness_without_best = fitness_values[:best_pos_generation] + fitness_values[best_pos_generation + 1:]
-        resultados_without_best = family_resultados[:best_pos_generation] + family_resultados[best_pos_generation + 1:]
+        # Conserva el mejor individuo y selecciona el resto de la nueva población
+        if elite_actualizado:
+            family_for_selection = family[:best_pos_generation] + family[best_pos_generation + 1:]
+            fitness_for_selection = fitness_values[:best_pos_generation] + fitness_values[best_pos_generation + 1:]
+            resultados_for_selection = family_resultados[:best_pos_generation] + family_resultados[best_pos_generation + 1:]
+        else:
+            family_for_selection = family
+            fitness_for_selection = fitness_values
+            resultados_for_selection = family_resultados
 
-        selected_pop, selected_fitness, selected_resultados = seleccionar_poblacion( family_without_best, fitness_without_best, resultados_without_best, pop_size - 1, selection_method, )
+        selected_pop, selected_fitness, selected_resultados = seleccionar_poblacion(family_for_selection, fitness_for_selection, resultados_for_selection, pop_size - 1, selection_method,)
         population = [best_candidate] + selected_pop
         population_fitness = [best_final_fitness] + selected_fitness
         population_resultados = [best_resultado] + selected_resultados
