@@ -71,7 +71,7 @@ PARTIDOS = {
     "Teruel Existe": "PROBPARTIDOS_23",
 }
 
-# Todos los partidos disponibles son objetivo
+
 PARTIDOS_OBJETIVO = list(PARTIDOS)
 
 VALOR_SIN_RESPUESTA = ""
@@ -82,9 +82,7 @@ PUNTUACION_MAXIMA = 10
 
 def ranking_participante(fila: dict[str, str]) -> list[list[str]]:
     # Convierte las valoraciones de la encuesta en un ranking por niveles
-    por_puntuacion: dict[int, list[str]] = {
-        puntuacion: [] for puntuacion in range(PUNTUACION_MAXIMA, PUNTUACION_MINIMA - 1, -1)
-    }
+    por_puntuacion: dict[int, list[str]] = {}
     hay_respuesta = False
     for partido, variable in PARTIDOS.items():
         valor = fila[variable].strip()
@@ -96,13 +94,13 @@ def ranking_participante(fila: dict[str, str]) -> list[list[str]]:
             puntuacion = int(valor)
             if not PUNTUACION_MINIMA <= puntuacion <= PUNTUACION_MAXIMA:
                 raise ValueError(f"Valor inesperado en {variable}: {valor!r}")
-        por_puntuacion[puntuacion].append(partido)
+        por_puntuacion.setdefault(puntuacion, []).append(partido)
         hay_respuesta = True
 
     if not hay_respuesta:
         return []
 
-    return [por_puntuacion[p] for p in range(PUNTUACION_MAXIMA, PUNTUACION_MINIMA - 1, -1)]
+    return [por_puntuacion[p] for p in sorted(por_puntuacion, reverse=True)]
 
 
 def cargar_rankings(csv_path: Path = CSV_DATOS):

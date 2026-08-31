@@ -70,11 +70,6 @@ que descargar los siguientes estudios y colocarlos en las rutas indicadas previa
 
 Cada ejecución escribe en su carpeta `resultados*/` los resultados generados en cada ejecución, así como los resultados agregados y algunos gráficos asociados.
 
----
-
-## Demo interactiva
-
-**[▶ Probar el genético](https://caroolhoyos.github.io/TFM/demo/)**
 
 ---
 
