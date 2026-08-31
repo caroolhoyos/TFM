@@ -8,6 +8,14 @@
 **/__pycache__/
 *.py[cod]
 
+# Otras versiones AG
+/algoritmos_genéticos/alg_gen_no_comp.py
+
 # Datos electorales
 /datos_electorales_andalucia_26/
 /datos_electorales_generales_23/
+
+# Experimentos de datos electorales de Andalucía de otras versiones del genético
+/autonómicas andalucía/experimento_datos_electorales_andalucia_2.py
+/autonómicas andalucía/experimento_datos_electorales_andalucia_3.py
+/elecciones generales/experimento_datos_electorales_generales_no_comp.py

@@ -1,4 +1,4 @@
-# Experimento de P7 que evalúa todos los partidos con alg_gen_no_comp
+# Experimento de P7 que evalúa los partidos nacionales con alg_gen_men
 
 from __future__ import annotations
 
@@ -18,13 +18,17 @@ MODULOS_DIR = SRC_DIR.parent
 if str(MODULOS_DIR) not in sys.path:
     sys.path.insert(0, str(MODULOS_DIR))
 
-from algoritmos_genéticos.alg_gen_no_comp import genetic_election
+from algoritmos_genéticos.alg_gen_men import genetic_election
 from algoritmos_genéticos.graficos_alg_gen import crear_graficos_convergencia
 
 
+# Usa la escala de P7 como límites del algoritmo genético
+PUNTUACION_MINIMA = 0
+PUNTUACION_MAXIMA = 10
+
 
 CONFIGURACION_GENETICO = {
-    "ejecuciones": 1,
+    "ejecuciones": 3,
     "generations": 150,
     "pop_size": 50,
     "mutation_prob": 0.1,
@@ -43,7 +47,7 @@ CSV_DATOS = (
     / "3411csv"
     / "3411_num.csv"
 )
-OUTPUT_DIR = SRC_DIR / "resultados 2"
+OUTPUT_DIR = SRC_DIR / "resultados 3"
 
 PARTIDOS = {
     "PSOE": "PROBPARTIDOS_1",
@@ -71,13 +75,17 @@ PARTIDOS = {
     "Teruel Existe": "PROBPARTIDOS_23",
 }
 
-# Todos los partidos disponibles son objetivo
-PARTIDOS_OBJETIVO = list(PARTIDOS)
+# Partidos nacionales
+PARTIDOS_NACIONALES = ["PSOE", "PP", "VOX", "Podemos", "IU", "Movimiento Sumar", "Más País"]
+
+_NACIONALES_SET = set(PARTIDOS_NACIONALES)
+PARTIDOS_TERRITORIALES = [p for p in PARTIDOS if p not in _NACIONALES_SET]
+
+
+PARTIDOS_OBJETIVO = PARTIDOS_NACIONALES
 
 VALOR_SIN_RESPUESTA = ""
 VALORES_PUNTUACION_CERO = {"98", "99"}
-PUNTUACION_MINIMA = 0
-PUNTUACION_MAXIMA = 10
 
 
 def ranking_participante(fila: dict[str, str]) -> list[list[str]]:
@@ -105,6 +113,16 @@ def ranking_participante(fila: dict[str, str]) -> list[list[str]]:
     return [por_puntuacion[p] for p in range(PUNTUACION_MAXIMA, PUNTUACION_MINIMA - 1, -1)]
 
 
+def reducir_a_nacionales(ranking: list[list[str]]) -> list[list[str]]:
+    # Elimina los partidos territoriales y compacta el ranking
+    reducido = []
+    for nivel in ranking:
+        nivel_nacional = [p for p in nivel if p in _NACIONALES_SET]
+        if nivel_nacional:
+            reducido.append(nivel_nacional)
+    return reducido
+
+
 def cargar_rankings(csv_path: Path = CSV_DATOS):
     # Carga y agrupa los rankings de los participantes
     participantes = []
@@ -113,7 +131,7 @@ def cargar_rankings(csv_path: Path = CSV_DATOS):
     with csv_path.open(encoding="utf-8-sig", newline="") as archivo:
         lector = csv.DictReader(archivo, delimiter=";")
         for fila in lector:
-            ranking = ranking_participante(fila)
+            ranking = reducir_a_nacionales(ranking_participante(fila))
             participantes.append({"registro": fila["REGISTRO"], "cuestionario": fila["CUES"], "ranking": ranking,})
             if ranking:
                 clave = tuple(tuple(nivel) for nivel in ranking)
@@ -145,7 +163,7 @@ def ejecutar_genetico(perfil, partido, args, ejecucion, partido_idx):
     inicio = time.perf_counter()
     puntuacion, fitness, resultado, history = genetic_election(ranking=perfil, cand=partido, generations=args.generations, mutation_prob=args.mutation_prob, pop_size=args.pop_size, k=args.k, a=args.a, b=args.b, return_history=True, selection_method=args.selection_method,)
     duracion = time.perf_counter() - inicio
-    ganador, vivos, cand_vivo, rondas, ultima_puntuacion = resultado
+    ganador, vivos, cand_vivo, rondas, ultima_puntuacion, ronda_ganadora = resultado
 
     nombre_partido = (
         partido.casefold() .replace(" ", "_") .replace("/", "_") .replace("-", "_")
@@ -159,7 +177,7 @@ def ejecutar_genetico(perfil, partido, args, ejecucion, partido_idx):
     directorio.mkdir(parents=True, exist_ok=True)
     graficos = crear_graficos_convergencia(history, directorio)
     (directorio / "historial.csv").write_text("generation,best_fitness,generation_best_fitness,average_fitness\n" + "\n".join(f"{h['generation']},{h['best_fitness']},{h['generation_best_fitness']},{h['average_fitness']}" for h in history) + "\n", encoding="utf-8",)
-    return {"ejecucion": ejecucion, "seed": seed, "partido": partido, "existe_solucion_ganadora": ganador == partido, "ganador": ganador, "fitness": fitness, "cand_vivo": cand_vivo, "rondas_sobrevive": rondas, "vivos": json.dumps(vivos, ensure_ascii=False), "ultima_puntuacion": json.dumps(ultima_puntuacion, ensure_ascii=False), "puntuacion": json.dumps(puntuacion, ensure_ascii=False), "tiempo_segundos": duracion, "grafico_mejor_fitness": str(graficos["mejor_fitness_acumulado"]), "grafico_fitness_medio": str(graficos["fitness_medio_generacion"]),}
+    return {"ejecucion": ejecucion, "seed": seed, "partido": partido, "existe_solucion_ganadora": ganador == partido, "ganador": ganador, "fitness": fitness, "cand_vivo": cand_vivo, "rondas_sobrevive": rondas, "ronda_ganadora": ronda_ganadora, "vivos": json.dumps(vivos, ensure_ascii=False), "ultima_puntuacion": json.dumps(ultima_puntuacion, ensure_ascii=False), "puntuacion": json.dumps(puntuacion, ensure_ascii=False), "tiempo_segundos": duracion, "grafico_mejor_fitness": str(graficos["mejor_fitness_acumulado"]), "grafico_fitness_medio": str(graficos["fitness_medio_generacion"]),}
 
 
 def guardar_resultados(resultados, output_path):
@@ -225,7 +243,7 @@ def main():
     rankings_path = args.output_dir / "rankings_pregunta_7.csv"
     guardar_rankings(participantes, rankings_path)
     con_respuesta = sum(bool(p["ranking"]) for p in participantes)
-    print(f"Rankings guardados en {rankings_path} " f"({con_respuesta}/{len(participantes)} participantes con al menos una respuesta válida).")
+    print(f"Rankings guardados en {rankings_path} " f"({con_respuesta}/{len(participantes)} participantes con al menos una respuesta válida tras reducir a partidos nacionales).")
 
     if args.solo_rankings:
         return

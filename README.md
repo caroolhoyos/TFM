@@ -15,7 +15,6 @@ TFM/
 ├── algoritmos_genéticos/
 │   ├── alg_gen.py                        # Versión base
 │   ├── alg_gen_men.py                    # Variante: se detiene al lograr la victoria antes del límite de rondas
-│   ├── alg_gen_no_comp.py                # Variante: no compacta el ranking de cada votante
 │   └── graficos_alg_gen.py               # Gráficos
 │
 ├── cultura imparcial/                    # Experimento con perfiles sintéticos (modelo de Cultura Imparcial)
@@ -28,17 +27,14 @@ TFM/
 │   ├── experimento_mallows_1.py
 │   └── resultados/
 │
-├── autonómicas andalucía/               # Experimento con datos reales del CIS (autonómicas Andalucía 2026, P8)
+├── autonómicas andalucía/               # Experimento con datos reales del CIS (autonómicas Andalucía 2026)
 │   ├── experimento_datos_electorales_andalucia_1.py
-│   ├── experimento_datos_electorales_andalucia_2.py
-│   ├── experimento_datos_electorales_andalucia_3.py
-│   └── resultados 1/ · resultados 2/ · resultados 3/
+│   └── resultados*/
 │
-├── elecciones generales/                # Experimento con datos reales del CIS (generales 2023, P7)
+├── elecciones generales/                # Experimento con datos reales del CIS (generales 2023)
 │   ├── experimento_datos_electorales_generales_1.py
 │   ├── experimento_datos_electorales_generales_2.py
-│   ├── experimento_datos_electorales_generales_3.py
-│   └── resultados 1/ · resultados 3/
+│   └── resultados*/
 │
 ├── datos_electorales_andalucia_26/      # Datos CIS 3558 
 │   └── MD3558/
