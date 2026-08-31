@@ -1,5 +1,4 @@
 from collections import Counter, defaultdict
-import argparse
 import csv
 import json
 import math
@@ -8,7 +7,8 @@ from random import Random
 import random
 from statistics import median
 import time
-import sys 
+import sys
+from types import SimpleNamespace
 
 
 
@@ -743,23 +743,6 @@ def guardar_resultados(resumenes, detalles, posiciones, output_dir):
 # CLI y programa principal
 
 
-def parse_args():
-    # Lee los argumentos de la línea de comandos
-    parser = argparse.ArgumentParser(description=("Experimento exploratorio Mallows con cinco candidatos, " "uno o dos rankings centrales."))
-
-    parser.add_argument("--bloque", choices=["un-centro", "dos-centros", "todos"], default="todos", help="Grupo de casos que se desea ejecutar.",)
-    parser.add_argument("--casos", nargs="*", default=None, help=("Nombres concretos de casos. Si se omite, se ejecutan todos " "los casos del bloque elegido."),)
-    parser.add_argument("--votantes", type=int, default=VOTANTES_POR_INSTANCIA,)
-    parser.add_argument("--instancias", type=int, default=INSTANCIAS_POR_CASO, help="Número de instancias independientes por caso Mallows.",)
-    parser.add_argument("--ejecuciones", type=int, default=EJECUCIONES_POR_OBJETIVO, help="Ejecuciones del genético por instancia y objetivo.",)
-    parser.add_argument("--generations", type=int, default=CONFIGURACION_GENETICO["generations"],)
-    parser.add_argument("--pop-size", type=int, default=CONFIGURACION_GENETICO["pop_size"],)
-    parser.add_argument("--mutation-prob", type=float, default=CONFIGURACION_GENETICO["mutation_prob"],)
-    parser.add_argument("--k", type=int, default=CONFIGURACION_GENETICO["k"])
-
-    return parser.parse_args()
-
-
 def seleccionar_casos(bloque, nombres_casos):
     # Selecciona los casos solicitados por el usuario
     casos = []
@@ -805,7 +788,17 @@ def validar_argumentos(args):
 
 def main():
     # Ejecuta el experimento completo de Mallows
-    args = parse_args()
+    args = SimpleNamespace(
+        bloque="todos",
+        casos=None,
+        votantes=VOTANTES_POR_INSTANCIA,
+        instancias=INSTANCIAS_POR_CASO,
+        ejecuciones=EJECUCIONES_POR_OBJETIVO,
+        generations=CONFIGURACION_GENETICO["generations"],
+        pop_size=CONFIGURACION_GENETICO["pop_size"],
+        mutation_prob=CONFIGURACION_GENETICO["mutation_prob"],
+        k=CONFIGURACION_GENETICO["k"],
+    )
     validar_argumentos(args)
 
     configuracion = {

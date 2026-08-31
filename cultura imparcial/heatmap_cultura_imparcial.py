@@ -1,83 +1,11 @@
-from collections import Counter
 from pathlib import Path
-from random import Random
 import subprocess
-import sys 
+import sys
 
 SRC_DIR = Path(__file__).resolve().parent
 MODULOS_DIR = SRC_DIR.parent
 if str(MODULOS_DIR) not in sys.path:
     sys.path.insert(0, str(MODULOS_DIR))
-
-def generar_votos_cultura_imparcial(candidatos, num_votantes, seed=123):
-    # Genera rankings completos bajo cultura imparcial
-    rng = Random(seed)
-    votos = []
-
-    for _ in range(num_votantes):
-        votos.append(tuple(rng.sample(candidatos, len(candidatos))))
-
-    return votos
-
-
-def generar_votos_mallows(candidatos, ranking_central, phi, num_votantes, seed=123):
-    # Genera rankings con el modelo de Mallows
-    if phi < 0 or phi > 1:
-        raise ValueError("phi debe estar entre 0 y 1.")
-
-    if set(candidatos) != set(ranking_central) or len(candidatos) != len(ranking_central):
-        raise ValueError("El ranking central debe contener exactamente los mismos candidatos.")
-
-    rng = Random(seed)
-    votos = []
-
-    for _ in range(num_votantes):
-        votos.append(_muestrear_mallows(ranking_central, phi, rng))
-
-    return votos
-
-
-def _muestrear_mallows(ranking_central, phi, rng):
-    # Construye un ranking aleatorio alrededor del ranking central
-    ranking = []
-
-    for candidato in ranking_central:
-        if phi == 1:
-            posicion = rng.randint(0, len(ranking))
-        else:
-            pesos = []
-
-            for posicion_posible in range(len(ranking) + 1):
-                inversiones = len(ranking) - posicion_posible
-                pesos.append(phi ** inversiones)
-
-            total = sum(pesos)
-            umbral = rng.random() * total
-            acumulado = 0
-            posicion = len(ranking)
-
-            for i, peso in enumerate(pesos):
-                acumulado += peso
-
-                if acumulado >= umbral:
-                    posicion = i
-                    break
-
-        ranking.insert(posicion, candidato)
-
-    return tuple(ranking)
-
-
-def matriz_posiciones(votos, candidatos):
-    # Cuenta los votos de cada candidato en cada posición
-    matriz = {candidato: [0] * len(candidatos) for candidato in candidatos}
-
-    for voto in votos:
-        for posicion, candidato in enumerate(voto):
-            matriz[candidato][posicion] += 1
-
-    return matriz
-
 
 def color_azul(valor, minimo, maximo):
     # Calcula un tono azul según el valor observado
@@ -385,53 +313,3 @@ def crear_heatmaps_panel_latex(paneles, candidatos, output_base):
     compilar_pdf_latex(tex_path)
 
     return pdf_path, svg_path, tex_path
-
-
-def main():
-    # Genera ejemplos de cultura imparcial y del modelo de Mallows
-    candidatos = ["A", "B", "C", "D", "E"]
-    ranking_central = candidatos[:]
-    num_votantes = 2000
-    seed = 2026
-    output_dir = Path(__file__).resolve().parent / "ejemplos"
-    output_dir.mkdir(exist_ok=True)
-
-    votos = generar_votos_cultura_imparcial(candidatos, num_votantes, seed)
-    matriz = matriz_posiciones(votos, candidatos)
-
-    # Resume los rankings completos generados
-    conteo_rankings = Counter(votos)
-    print(f"Rankings distintos generados: {len(conteo_rankings)} de {len(candidatos)}! posibles")
-
-    output_base = output_dir / "heatmap_cultura_imparcial_5c_2000v"
-    pdf_path, svg_path, tex_path = crear_heatmap_latex(matriz, candidatos, output_base)
-
-    print(f"PDF para LaTeX: {pdf_path}")
-    print(f"SVG adicional: {svg_path}")
-    print(f"TikZ editable: {tex_path}")
-
-    paneles_mallows_baja_dispersion = []
-
-    for phi, seed_phi in [(0, seed + 10), (0.2, seed + 20)]:
-        votos_mallows = generar_votos_mallows(candidatos=candidatos, ranking_central=ranking_central, phi=phi, num_votantes=num_votantes, seed=seed_phi,)
-        paneles_mallows_baja_dispersion.append({"etiqueta": f"phi={phi}", "etiqueta_latex": rf"$\phi={phi}$", "matriz": matriz_posiciones(votos_mallows, candidatos),})
-
-    output_mallows_baja = output_dir / "heatmap_mallows_phi_0_02_5c_2000v"
-    pdf_path, svg_path, tex_path = crear_heatmaps_panel_latex(paneles_mallows_baja_dispersion, candidatos, output_mallows_baja,)
-
-    print(f"PDF Mallows phi=0 y phi=0.2: {pdf_path}")
-    print(f"SVG Mallows phi=0 y phi=0.2: {svg_path}")
-    print(f"TikZ Mallows phi=0 y phi=0.2: {tex_path}")
-
-    votos_mallows_phi_1 = generar_votos_mallows(candidatos=candidatos, ranking_central=ranking_central, phi=1, num_votantes=num_votantes, seed=seed + 30,)
-    panel_mallows_phi_1 = [{"etiqueta": "phi=1", "etiqueta_latex": r"$\phi=1$", "matriz": matriz_posiciones(votos_mallows_phi_1, candidatos),}]
-    output_mallows_phi_1 = output_dir / "heatmap_mallows_phi_1_5c_2000v"
-    pdf_path, svg_path, tex_path = crear_heatmaps_panel_latex(panel_mallows_phi_1, candidatos, output_mallows_phi_1,)
-
-    print(f"PDF Mallows phi=1: {pdf_path}")
-    print(f"SVG Mallows phi=1: {svg_path}")
-    print(f"TikZ Mallows phi=1: {tex_path}")
-
-
-if __name__ == "__main__":
-    main()

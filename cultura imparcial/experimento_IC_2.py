@@ -1,5 +1,4 @@
 from collections import Counter
-import argparse
 import csv
 import json
 import math
@@ -8,7 +7,8 @@ from random import Random
 import random
 from statistics import median
 import time
-import sys 
+import sys
+from types import SimpleNamespace
 
 SRC_DIR = Path(__file__).resolve().parent
 MODULOS_DIR = SRC_DIR.parent
@@ -432,22 +432,16 @@ def guardar_resultados(resumenes, detalles, posiciones, output_dir):
     return (resumen_path, detalles_path, posiciones_path, categorias_path, tabla_path,)
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description=("Estudia si el algoritmo genético aprovecha las desviaciones " "de la posición media en instancias IC."))
-
-    parser.add_argument("--votantes", type=int, default=VOTANTES_POR_INSTANCIA, help="Número de votantes de cada instancia IC.",)
-    parser.add_argument("--instancias", type=int, default=NUM_INSTANCIAS, help="Número de instancias IC independientes.",)
-    parser.add_argument("--ejecuciones", type=int, default=EJECUCIONES_POR_CASO, help="Ejecuciones por instancia y candidato objetivo.",)
-    parser.add_argument("--generations", type=int, default=CONFIGURACION_GENETICO["generations"], help="Número de generaciones del algoritmo genético.",)
-    parser.add_argument("--pop-size", type=int, default=CONFIGURACION_GENETICO["pop_size"], help="Tamaño de la población del algoritmo genético.",)
-    parser.add_argument("--mutation-prob", type=float, default=CONFIGURACION_GENETICO["mutation_prob"], help="Probabilidad de mutación.",)
-    parser.add_argument("--k", type=int, default=CONFIGURACION_GENETICO["k"])
-
-    return parser.parse_args()
-
-
 def main():
-    args = parse_args()
+    args = SimpleNamespace(
+        votantes=VOTANTES_POR_INSTANCIA,
+        instancias=NUM_INSTANCIAS,
+        ejecuciones=EJECUCIONES_POR_CASO,
+        generations=CONFIGURACION_GENETICO["generations"],
+        pop_size=CONFIGURACION_GENETICO["pop_size"],
+        mutation_prob=CONFIGURACION_GENETICO["mutation_prob"],
+        k=CONFIGURACION_GENETICO["k"],
+    )
 
     if args.votantes <= 0:
         raise ValueError("El número de votantes debe ser positivo.")

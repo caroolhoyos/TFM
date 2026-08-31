@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 from collections import Counter
 import csv
 import json
@@ -11,6 +10,7 @@ import random
 from statistics import mean, median
 import sys
 import time
+from types import SimpleNamespace
 
 
 SRC_DIR = Path(__file__).resolve().parent
@@ -138,15 +138,6 @@ def guardar_rankings(participantes, output_path: Path):
             writer.writerow({"registro": participante["registro"], "cuestionario": participante["cuestionario"], "num_partidos": sum(map(len, ranking)), "num_niveles": len(ranking), "ranking": json.dumps(ranking, ensure_ascii=False),})
 
 
-def resolver_partido(texto: str) -> str:
-    # Valida y normaliza el nombre del partido
-    coincidencias = [p for p in PARTIDOS if p.casefold() == texto.casefold()]
-    if not coincidencias:
-        disponibles = ", ".join(PARTIDOS)
-        raise argparse.ArgumentTypeError(f"Partido desconocido: {texto!r}. Opciones: {disponibles}")
-    return coincidencias[0]
-
-
 def ejecutar_genetico(perfil, partido, args, ejecucion, partido_idx):
     # Ejecuta el algoritmo genético para un partido
     seed = args.seed + partido_idx * 100_000 + ejecucion - 1
@@ -212,37 +203,23 @@ def mostrar_estadisticas_agregadas(resumenes):
         print(f"  Tiempo: media={resumen['tiempo_medio_segundos']:.2f} s, " f"mediana={resumen['tiempo_mediano_segundos']:.2f} s, " f"total={resumen['tiempo_total_segundos']:.2f} s")
 
 
-def parse_args():
-    # Lee los argumentos de la línea de comandos
-    parser = argparse.ArgumentParser(description="Busca una regla de puntuación que haga ganador a un partido usando P7.")
-    parser.add_argument("--partidos", nargs="+", type=resolver_partido, default=PARTIDOS_OBJETIVO, help=("Uno o varios partidos objetivo separados por espacios " f"(por defecto: {', '.join(PARTIDOS_OBJETIVO)})."),)
-    parser.add_argument("--ejecuciones", type=int, default=CONFIGURACION_GENETICO["ejecuciones"])
-    parser.add_argument("--generations", type=int, default=CONFIGURACION_GENETICO["generations"])
-    parser.add_argument("--pop-size", type=int, default=CONFIGURACION_GENETICO["pop_size"])
-    parser.add_argument("--mutation-prob", type=float, default=CONFIGURACION_GENETICO["mutation_prob"])
-    parser.add_argument("--k", type=int, default=CONFIGURACION_GENETICO["k"])
-    parser.add_argument("--selection-method", choices=("rank", "roulette"), default=CONFIGURACION_GENETICO["selection_method"],)
-    parser.add_argument("--seed", type=int, default=CONFIGURACION_GENETICO["seed"])
-    parser.add_argument("--a", type=int, default=CONFIGURACION_GENETICO["a"])
-    parser.add_argument("--b", type=int, default=CONFIGURACION_GENETICO["b"])
-    parser.add_argument("--csv-datos", type=Path, default=CSV_DATOS)
-    parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR)
-    parser.add_argument("--solo-rankings", action="store_true", help="Genera el CSV de rankings sin ejecutar el algoritmo genético.",)
-    args = parser.parse_args()
-    if len(set(args.partidos)) != len(args.partidos):
-        parser.error("La lista de partidos objetivo contiene partidos repetidos")
-    if args.ejecuciones < 1 or args.generations < 1 or args.pop_size < 2:
-        parser.error("ejecuciones y generations deben ser >= 1; pop-size debe ser >= 2")
-    if args.k is not None and args.k < 0:
-        parser.error("k debe ser >= 0")
-    if args.a > args.b:
-        parser.error("a debe ser menor o igual que b")
-    return args
-
-
 def main():
     # Ejecuta el experimento completo
-    args = parse_args()
+    args = SimpleNamespace(
+        partidos=PARTIDOS_OBJETIVO,
+        ejecuciones=CONFIGURACION_GENETICO["ejecuciones"],
+        generations=CONFIGURACION_GENETICO["generations"],
+        pop_size=CONFIGURACION_GENETICO["pop_size"],
+        mutation_prob=CONFIGURACION_GENETICO["mutation_prob"],
+        k=CONFIGURACION_GENETICO["k"],
+        selection_method=CONFIGURACION_GENETICO["selection_method"],
+        seed=CONFIGURACION_GENETICO["seed"],
+        a=CONFIGURACION_GENETICO["a"],
+        b=CONFIGURACION_GENETICO["b"],
+        csv_datos=CSV_DATOS,
+        output_dir=OUTPUT_DIR,
+        solo_rankings=False,
+    )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     participantes, perfil = cargar_rankings(args.csv_datos)
     rankings_path = args.output_dir / "rankings_pregunta_7.csv"

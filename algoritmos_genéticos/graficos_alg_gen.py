@@ -1,5 +1,3 @@
-"""Generación de gráficos SVG para el historial del algoritmo genético."""
-
 from __future__ import annotations
 
 from math import isfinite
@@ -144,7 +142,7 @@ def crear_graficos_convergencia(
     historial: Iterable[Mapping[str, object]],
     output_dir: str | Path,
 ) -> dict[str, Path]:
-    """Crea los dos gráficos de convergencia esperados por los experimentos."""
+    
     registros = _normalizar_historial(historial)
     directorio = Path(output_dir)
     directorio.mkdir(parents=True, exist_ok=True)
